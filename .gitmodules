@@ -1,0 +1,3 @@
+[submodule "libs/geometry_module"]
+	path = libs/geometry_module
+	url = git@github.com:I1Va/geometry_module.git
