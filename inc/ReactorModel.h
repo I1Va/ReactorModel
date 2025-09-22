@@ -57,19 +57,23 @@ class ReactorModel {
 
     std::vector<Molecule *> molecules_ = {};
     ReactorPreUpdateState preUpdateState_ = {};
-    std::function<void(ReactorModel&)> onUpdate_ = nullptr;
+    std::function<void()> onUpdate_ = nullptr;
 
 public:
     ReactorModel
     (       
         const double width, const double height,
-        std::function<void(ReactorModel&)> onUpdate=nullptr,
+        std::function<void()> onUpdate=nullptr,
         std::optional<unsigned int> seed=std::nullopt
     ):
         width_(width), height_(height),
         onUpdate_(onUpdate),
         randomGenerator_(seed.value_or(std::random_device{}()))
     {}
+
+    void setOnUpdate(std::function<void()> onUpdate) {
+        onUpdate_ = onUpdate;
+    }
 
     ReactorModel() = default;
 
@@ -83,7 +87,7 @@ public:
         
         processReactortEvent(deltaSecs);
         
-        if (onUpdate_) onUpdate_(*this);
+        if (onUpdate_) onUpdate_();
     }
     
 
