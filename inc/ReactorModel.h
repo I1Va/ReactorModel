@@ -59,9 +59,6 @@ class ReactorModel {
     ReactorPreUpdateState preUpdateState_ = {};
     std::function<void(ReactorModel&)> onUpdate_ = nullptr;
 
-
-    
-
 public:
     ReactorModel
     (       
@@ -71,7 +68,10 @@ public:
     ):
         width_(width), height_(height),
         onUpdate_(onUpdate),
-        randomGenerator_(seed.value_or(std::random_device{}())) {}
+        randomGenerator_(seed.value_or(std::random_device{}()))
+    {}
+
+    ReactorModel() = default;
 
     ~ReactorModel() = default;
 
