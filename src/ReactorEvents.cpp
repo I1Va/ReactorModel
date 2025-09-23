@@ -1,6 +1,8 @@
 #include "ReactorEvents.h"
 #include <limits>
 
+static const double BOOM_DT = 0.001;
+static const double BOOM_SPEED_COEF = 100;
 
 MoleculeReactionEvent tryMoleculeReactionEvent(Molecule *fstMolecule, Molecule *sndMolecule) {
     assert(fstMolecule);
@@ -51,17 +53,25 @@ WallCollisionEvent tryWallCollisionEvent(Molecule *molecule, const double width,
     double tx = INFINITY;
     double ty = INFINITY;
 
-    if (speedX > 0) // right wall
-        tx = (width - collideRadius - posX) /speedX; 
-    else // left wall
-        tx = (collideRadius - posX) / speedX; 
-        
-    if (speedY > 0) // bottom wall
-        ty = (height - collideRadius - posY) / speedY; 
-    else // top wall
-        ty = (collideRadius - posY) / speedY;                 
+
+    if (std::fabs(speedX) >= std::numeric_limits<double>::epsilon()) {
+         if (speedX > 0) // right wall
+            tx = (width - collideRadius - posX) / speedX; 
+        else // left wall
+            tx = (collideRadius - posX) / speedX; 
+    }
+
+    if (std::fabs(speedX) >= std::numeric_limits<double>::epsilon()) {
+        if (speedY > 0) // bottom wall
+            ty = (height - collideRadius - posY) / speedY; 
+        else // top wall
+            ty = (collideRadius - posY) / speedY;                 
+    }
 
     double tMin = std::min(tx, ty);
+
+    if (std::isinf(tMin)) return WallCollisionEvent::POISON();
+
     if (tMin == tx) {
         return WallCollisionEvent(tMin, molecule, {-speedX, speedY});
     } else {
@@ -79,35 +89,50 @@ void handleReactorEvent(const MoleculeReactionEvent &event, std::vector<Molecule
     moleculeReaction(molecules, event.fstMolecule_, event.sndMolecule_);
 }
 
+inline gm_vector<double, 2> getCollideCenter(Molecule *fstMolecule, Molecule *sndMolecule) {
+    double R1 = fstMolecule->getCollideCircleRadius();
+    double R2 = sndMolecule->getCollideCircleRadius();
+    gm_vector<double, 2> Pos1 = fstMolecule->getPosition();
+    gm_vector<double, 2> Pos2 = sndMolecule->getPosition();
+
+    return (Pos1 * R2 + Pos2 * R1) * (1.0 / (R1 + R2));
+}
+
 void QuadritQuadritReaction(
     std::vector<Molecule*> &molecules,
     Molecule *fstMolecule,
     Molecule *sndMolecule
 ) {
-    gm_vector<double, 2> collideCenter = fstMolecule->getPosition() + (sndMolecule->getPosition() - fstMolecule->getPosition()) * 0.5;
 
-    int boomMoleculeCnt = fstMolecule->getMass() + fstMolecule->getMass();
+    gm_vector<double, 2> collideCenter = getCollideCenter(fstMolecule, sndMolecule);
+
+    int boomMoleculeCnt = fstMolecule->getMass() + sndMolecule->getMass();
     double boomRootationAngle = 2 * std::numbers::pi / boomMoleculeCnt;
     
     double boomRadius = std::sqrt(2 / std::sin(boomRootationAngle)) * 2;
-    gm_vector<double, 2> boomCurSpeedVector = gm_vector<double, 2>(0, -1) * boomRadius;
+    gm_vector<double, 2> boomCurOffsetVector = (gm_vector<double, 2>(0, -1)) * boomRadius;
 
     fstMolecule->setPhyState(DEATH);
     sndMolecule->setPhyState(DEATH);
 
     for (int i = 0; i < boomMoleculeCnt; i++) {
-        Molecule *newMolecule = (Molecule *) new Circlit(collideCenter + boomCurSpeedVector, boomCurSpeedVector, 1);
+        Molecule *newMolecule = (Molecule *) new Circlit(collideCenter + boomCurOffsetVector * BOOM_DT, boomCurOffsetVector * BOOM_SPEED_COEF, 1);
         molecules.push_back(newMolecule);
-        boomCurSpeedVector = boomCurSpeedVector.rotate(boomRootationAngle);
+        boomCurOffsetVector = boomCurOffsetVector.rotate(boomRootationAngle);
     }
 }
+
+
+
+
 
 void CirclitQuadritReaction(
     std::vector<Molecule*> &molecules,
     Molecule *fstMolecule,
     Molecule *sndMolecule
 ) {
-    gm_vector<double, 2> collideCenter = fstMolecule->getPosition() + (fstMolecule->getPosition() - sndMolecule->getPosition()) * 0.5;
+    gm_vector<double, 2> collideCenter = getCollideCenter(fstMolecule, sndMolecule);
+
 
     int newMass = fstMolecule->getMass() + sndMolecule->getMass();
    

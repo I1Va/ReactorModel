@@ -38,7 +38,7 @@ public:
 
     ~Molecule() = default;
 
-    virtual double getCollideCircleRadius() { return 0; }
+    virtual double getCollideCircleRadius() const { return 0; }
     
     bool isAlive() { return (phyState_ == MoleculePhysicalStates::ALIVE); }
 
@@ -74,7 +74,7 @@ public:
     ~Circlit() = default;
 
     double massToSize() const override { return mass_; }
-    double getCollideCircleRadius() override { return size_; }
+    double getCollideCircleRadius() const override { return size_; }
 };
 
 
@@ -96,7 +96,7 @@ public:
     ~Quadrit() = default;
 
     double massToSize() const override { return mass_; }
-    double getCollideCircleRadius() override { return size_ / SQRT2; }
+    double getCollideCircleRadius() const override { return size_ / SQRT2; }
 };
 
 #endif // MOLECULE_H

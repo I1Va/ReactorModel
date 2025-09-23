@@ -10,9 +10,11 @@
 #include "ReactorEvents.h"
 #include "gm_primitives.hpp"
 
-const double minSpeed = 500;
-const double maxSpeed = 1000;
-const int initMass = 10;
+static const double minSpeed = 500;
+static const double maxSpeed = 1000;
+static const int initMass = 3;
+
+static const double WALL_OFFSET_EPS = 0.01;
 
 class ReactorPreUpdateState {
     std::vector<Molecule *> newMolecules_ = {};
@@ -89,13 +91,15 @@ public:
 
 
     void update(const double deltaSecs) {
+        if (onUpdate_) onUpdate_();
+    
         preUpdate();
 
         resolveInvalides();
-        
+
         processReactortEvent(deltaSecs);
-        
-        if (onUpdate_) onUpdate_();
+
+        resolveInvalides();
     }
     
 
@@ -180,17 +184,24 @@ private:
 
 
         for (auto it = molecules_.begin() + aliveCnt; it != molecules_.end();) {
-            std::cout << "delete : " << (*it)->isAlive() << " ";
             delete (*it);
             it = molecules_.erase(it);
         }
-        std::cout << "\n";
+    }
+
+    bool isMoleculeValid(const Molecule &molecule) {
+        double collideRadius = molecule.getCollideCircleRadius();
+        
+        if (!molecule.getPosition().is_valid()) return false;
+        if (!molecule.getSpeedVector().is_valid()) return false;
+        if ((0 + collideRadius > width_ - collideRadius) || (0 + collideRadius > height_ - collideRadius)) return false;
+
+        return true;
     }
 
     void resolveInvalides() {
         for (auto molecule : molecules_) {
-            double collideRadius = molecule->getCollideCircleRadius();
-            if ((0 + collideRadius > width_ - collideRadius) || (0 + collideRadius > height_ - collideRadius)) {
+            if (!isMoleculeValid(*molecule)) {
                 molecule->setPhyState(MoleculePhysicalStates::DEATH);
             }
         }
@@ -198,10 +209,16 @@ private:
         clearDeathMolecules();
     
         for (auto molecule : molecules_) {
-            double collideRadius = molecule->getCollideCircleRadius();
-            double clampedX = std::clamp(molecule->getPosition().get_x(), 0 + collideRadius, width_ - collideRadius);
-            double clampedY = std::clamp(molecule->getPosition().get_y(), 0 + collideRadius, height_ - collideRadius);
-            molecule->setPosition({clampedX, clampedY});
+            double x = molecule->getPosition().get_x();
+            double y = molecule->getPosition().get_y();
+            double r = molecule->getCollideCircleRadius();
+
+            if (x < r) x += WALL_OFFSET_EPS;
+            if (x > width_ - r) x -= WALL_OFFSET_EPS;
+            if (y < r) y += WALL_OFFSET_EPS;
+            if (y > height_ - r) y -= WALL_OFFSET_EPS;    
+
+            molecule->setPosition({x, y});
         }
     }
    
@@ -243,12 +260,14 @@ private:
 
         processReactorStableState(closestEventDelta);
         
-
+        // need to process several events
         if (wallCollisionEventState) {
             handleReactorEvent(closestWallCollisionEvent);
         } else {
             handleReactorEvent(closestoleculeReactionEvent, preUpdateState_.getNewMolecules());
         }
+
+        // processReactortEvent(deltaSecs - closestEventDelta);
     }
 };
 
