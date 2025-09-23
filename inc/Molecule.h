@@ -46,7 +46,10 @@ public:
     MoleculePhysicalStates getPhyState() const { return phyState_; }
     gm_vector<double, 2> getPosition() const { return position_; }
     gm_vector<double, 2> getSpeedVector() const { return speedVector_; }
+    
     int getMass() const { return mass_; }
+    virtual double massToSize() const { return mass_; }
+    double getSize() const { return size_; }
     
     void setPosition(const gm_vector<double, 2> &other) { position_ = other; }
     void setSpeedVector(const gm_vector<double, 2> &other) { speedVector_ = other; }
@@ -63,12 +66,14 @@ public:
     ): 
         Molecule(position, speedVector, mass)
     { 
+        size_ = massToSize();
         type_ = MoleculeTypes::CIRCLIT;
         phyState_ = MoleculePhysicalStates::ALIVE;
     }
 
     ~Circlit() = default;
 
+    double massToSize() const override { return mass_; }
     double getCollideCircleRadius() override { return size_; }
 };
 
@@ -89,6 +94,7 @@ public:
 
     ~Quadrit() = default;
 
+    double massToSize() const override { return mass_; }
     double getCollideCircleRadius() override { return size_ / SQRT2; }
 };
 

@@ -143,6 +143,7 @@ private:
     }
 
     void preUpdate() {
+        
         for (int i = 0; i < preUpdateState_.getNewCirclitsCnt(); i++) addMolecule(MoleculeTypes::CIRCLIT);
         for (int i = 0; i < preUpdateState_.getNewQuadritsCnt(); i++) addMolecule(MoleculeTypes::QUADRIT);
  
@@ -214,10 +215,7 @@ private:
         bool wallCollisionEventState = (!closestWallCollisionEvent.isPoison() && closestoleculeReactionEvent.isPoison()) || (closestWallCollisionEvent < closestoleculeReactionEvent);
         double closestEventDelta = wallCollisionEventState ? closestWallCollisionEvent.getDeltaSecs() : closestoleculeReactionEvent.getDeltaSecs();
 
-        std::cout << "closestoleculeReactionEvent : " << closestoleculeReactionEvent.getDeltaSecs() << "\n";
         
-        
-
         if (closestEventDelta > deltaSecs) {
             processReactorStableState(deltaSecs);
             return;
