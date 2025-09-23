@@ -79,16 +79,6 @@ WallCollisionEvent tryWallCollisionEvent(Molecule *molecule, const double width,
     }
 } 
 
-void handleReactorEvent(const WallCollisionEvent &event) {
-    assert(event.molecule_);
-    event.molecule_->setSpeedVector(event.newSpeedVector_);
-}
-
-void handleReactorEvent(const MoleculeReactionEvent &event, std::vector<Molecule *> &molecules) {   
-    MoleculeReaction moleculeReaction = moleculeReactionsVTable[event.fstMolecule_->getType()][event.sndMolecule_->getType()];
-    moleculeReaction(molecules, event.fstMolecule_, event.sndMolecule_);
-}
-
 inline gm_vector<double, 2> getCollideCenter(Molecule *fstMolecule, Molecule *sndMolecule) {
     double R1 = fstMolecule->getCollideCircleRadius();
     double R2 = sndMolecule->getCollideCircleRadius();
@@ -121,10 +111,6 @@ void QuadritQuadritReaction(
         boomCurOffsetVector = boomCurOffsetVector.rotate(boomRootationAngle);
     }
 }
-
-
-
-
 
 void CirclitQuadritReaction(
     std::vector<Molecule*> &molecules,

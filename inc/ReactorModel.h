@@ -12,7 +12,8 @@
 
 static const double minSpeed = 500;
 static const double maxSpeed = 1000;
-static const int initMass = 3;
+static const int initMass = 1;
+static const double STICKING_EVENTS_EPS = 0.01;
 
 static const double WALL_OFFSET_EPS = 0.01;
 
@@ -189,19 +190,10 @@ private:
         }
     }
 
-    bool isMoleculeValid(const Molecule &molecule) {
-        double collideRadius = molecule.getCollideCircleRadius();
-        
-        if (!molecule.getPosition().is_valid()) return false;
-        if (!molecule.getSpeedVector().is_valid()) return false;
-        if ((0 + collideRadius > width_ - collideRadius) || (0 + collideRadius > height_ - collideRadius)) return false;
-
-        return true;
-    }
-
     void resolveInvalides() {
         for (auto molecule : molecules_) {
-            if (!isMoleculeValid(*molecule)) {
+            double collideRadius = molecule->getCollideCircleRadius();
+            if ((0 + collideRadius > width_ - collideRadius) || (0 + collideRadius > height_ - collideRadius)) {
                 molecule->setPhyState(MoleculePhysicalStates::DEATH);
             }
         }
@@ -228,46 +220,45 @@ private:
     }
 
     void processReactortEvent(const double deltaSecs) {
-        WallCollisionEvent closestWallCollisionEvent = WallCollisionEvent::POISON();
-        MoleculeReactionEvent closestoleculeReactionEvent = MoleculeReactionEvent::POISON();
-       
-        for (size_t fstMoleculeId = 0; fstMoleculeId < molecules_.size(); fstMoleculeId++) {
+        std::vector<ReactorEvent *> events = {};
+
+         for (size_t fstMoleculeId = 0; fstMoleculeId < molecules_.size(); fstMoleculeId++) {
             WallCollisionEvent curWallCollisionEvent = tryWallCollisionEvent(molecules_[fstMoleculeId], width_, height_);
-            if (closestWallCollisionEvent.isPoison() || (!curWallCollisionEvent.isPoison() && curWallCollisionEvent < closestWallCollisionEvent))
-                closestWallCollisionEvent = curWallCollisionEvent;
+            if (!curWallCollisionEvent.isPoison()) {
+                ReactorEvent *newEvent = (ReactorEvent *) new WallCollisionEvent(curWallCollisionEvent);
+                events.push_back(newEvent);
+            }
 
             for (size_t sndMoleculeId = 0; sndMoleculeId < molecules_.size(); sndMoleculeId++) {
                 MoleculeReactionEvent curMoleculeReactionEvent = tryMoleculeReactionEvent(molecules_[fstMoleculeId], molecules_[sndMoleculeId]);
-                if (closestoleculeReactionEvent.isPoison() || (!curMoleculeReactionEvent.isPoison() && curMoleculeReactionEvent < closestoleculeReactionEvent))
-                    closestoleculeReactionEvent = curMoleculeReactionEvent;
+                if (!curMoleculeReactionEvent.isPoison()) {
+                    ReactorEvent *newEvent = (ReactorEvent *) new MoleculeReactionEvent(curMoleculeReactionEvent);
+                    events.push_back(newEvent);
+                }
             }
         }
 
-        if (closestWallCollisionEvent.isPoison() && closestoleculeReactionEvent.isPoison()) {
+        if (!events.size()) processReactorStableState(deltaSecs);
+
+        auto cmpByTime = [](ReactorEvent* a, ReactorEvent* b) {
+            return a->getDeltaSecs() < b->getDeltaSecs();
+        };
+
+        std::sort(events.begin(), events.end(), cmpByTime);
+
+        double firstDelta = events[0]->getDeltaSecs();
+        if (firstDelta > deltaSecs) {
+            for (auto event : events) delete event;
             processReactorStableState(deltaSecs);
             return;
         }
         
-
-        bool wallCollisionEventState = (!closestWallCollisionEvent.isPoison() && closestoleculeReactionEvent.isPoison()) || (closestWallCollisionEvent < closestoleculeReactionEvent);
-        double closestEventDelta = wallCollisionEventState ? closestWallCollisionEvent.getDeltaSecs() : closestoleculeReactionEvent.getDeltaSecs();
-
-        
-        if (closestEventDelta > deltaSecs) {
-            processReactorStableState(deltaSecs);
-            return;
+        for (auto event : events) {
+            if (event->getDeltaSecs() - firstDelta < STICKING_EVENTS_EPS) {
+                event->handleReactorEvent(preUpdateState_.getNewMolecules());
+            }
+            delete event;
         }
-
-        processReactorStableState(closestEventDelta);
-        
-        // need to process several events
-        if (wallCollisionEventState) {
-            handleReactorEvent(closestWallCollisionEvent);
-        } else {
-            handleReactorEvent(closestoleculeReactionEvent, preUpdateState_.getNewMolecules());
-        }
-
-        // processReactortEvent(deltaSecs - closestEventDelta);
     }
 };
 

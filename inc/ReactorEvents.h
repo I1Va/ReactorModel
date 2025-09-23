@@ -58,6 +58,8 @@ public:
     }
 
     double getDeltaSecs() const { return deltaSecs_; }
+
+    virtual void handleReactorEvent(std::vector<Molecule*> &molecules) {}
 };
 
 class WallCollisionEvent : public ReactorEvent {
@@ -75,8 +77,13 @@ public:
         return posionEvent;
     }
 
-    friend void handleReactorEvent(const WallCollisionEvent &event);
+    void handleReactorEvent(std::vector<Molecule*> &molecules) override {
+        if (!molecule_->isAlive()) return;
+
+        molecule_->setSpeedVector(newSpeedVector_);
+    }
 };
+
 
 class MoleculeReactionEvent : public ReactorEvent {
     Molecule* fstMolecule_;
@@ -92,7 +99,12 @@ public:
         return posionEvent;
     }
 
-    friend void handleReactorEvent(const MoleculeReactionEvent &event, std::vector<Molecule *> &molecules);
+    void handleReactorEvent(std::vector<Molecule *> &molecules) override {
+        if (!fstMolecule_->isAlive() || !sndMolecule_->isAlive()) return;
+
+        MoleculeReaction moleculeReaction = moleculeReactionsVTable[fstMolecule_->getType()][sndMolecule_->getType()];
+        moleculeReaction(molecules, fstMolecule_, sndMolecule_);
+    }
 };
 
 
