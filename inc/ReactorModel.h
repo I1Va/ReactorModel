@@ -10,9 +10,9 @@
 #include "ReactorEvents.h"
 #include "gm_primitives.hpp"
 
-const double minSpeed = 1;
-const double maxSpeed = 10;
-const int initMass = 1;
+const double minSpeed = 500;
+const double maxSpeed = 1000;
+const int initMass = 2;
 
 class ReactorPreUpdateState {
     int newCirclitsCnt_ = 0;
@@ -157,15 +157,16 @@ private:
 
     void clearDeathMolecules() {
         reorderMolecules();
-        int aliveMoleculesCnt = 0;
-        for (auto molecule : molecules_) {
-            if (molecule->isAlive()) {
-                aliveMoleculesCnt += molecule->isAlive();
-            } else {
-                delete molecule;
-            }
+
+        size_t aliveCnt = 0;
+        for (auto molecules : molecules_) {
+            aliveCnt += (molecules->isAlive());
         }
-        molecules_.resize(aliveMoleculesCnt); 
+
+        for (auto it = molecules_.begin() + aliveCnt; it < molecules_.end(); it++) {
+            delete (*it);
+            molecules_.erase(it);
+        }
     }
 
     void resolveInvalides() {
@@ -212,6 +213,7 @@ private:
             return;
         }
         
+
         bool wallCollisionEventState = (!closestWallCollisionEvent.isPoison() && closestoleculeReactionEvent.isPoison()) || (closestWallCollisionEvent < closestoleculeReactionEvent);
         double closestEventDelta = wallCollisionEventState ? closestWallCollisionEvent.getDeltaSecs() : closestoleculeReactionEvent.getDeltaSecs();
 
