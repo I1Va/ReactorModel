@@ -107,8 +107,7 @@ void CirclitQuadritReaction(
     Molecule *fstMolecule,
     Molecule *sndMolecule
 ) {
-
-    gm_vector<double, 2> collideCenter = fstMolecule->getPosition() + (fstMolecule->getPosition() - fstMolecule->getPosition()) * 0.5;
+    gm_vector<double, 2> collideCenter = fstMolecule->getPosition() + (fstMolecule->getPosition() - sndMolecule->getPosition()) * 0.5;
 
     int newMass = fstMolecule->getMass() + sndMolecule->getMass();
    
@@ -120,7 +119,7 @@ void CirclitQuadritReaction(
     fstMolecule->setPhyState(DEATH);
     sndMolecule->setPhyState(DEATH);
 
-    Molecule *newMolecule = new Quadrit(collideCenter, newspeedVector, newMass);
-
+    Molecule *newMolecule = (Molecule *) new Quadrit(collideCenter, newspeedVector, newMass);
+    
     molecules.push_back(newMolecule);
 }

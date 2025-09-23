@@ -90,6 +90,7 @@ public:
     { 
         type_ = MoleculeTypes::QUADRIT;
         phyState_ = MoleculePhysicalStates::ALIVE;
+        size_ = massToSize();
     }
 
     ~Quadrit() = default;

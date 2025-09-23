@@ -12,11 +12,10 @@
 
 const double minSpeed = 500;
 const double maxSpeed = 1000;
-const int initMass = 2;
+const int initMass = 10;
 
 class ReactorPreUpdateState {
-    int newCirclitsCnt_ = 0;
-    int newQuadritsCnt_ = 0;
+    std::vector<Molecule *> newMolecules_ = {};
 
     bool newSizeState_ = false;
     double newWidth_ = 0;
@@ -27,23 +26,32 @@ public:
     ~ReactorPreUpdateState() = default;
 
     void reset() {
-        newCirclitsCnt_ = 0;
-        newQuadritsCnt_ = 0;
+        newMolecules_.clear();
         newSizeState_ = false;
         newWidth_ = 0;
         newHeight_ = 0;
     }
 
-    void addCirclit() { newCirclitsCnt_++; }
-    void addQuadrit() { newQuadritsCnt_++; }
+    void addNewMolecule(Molecule *newMolecule) { 
+        assert(newMolecule);
+        newMolecules_.push_back(newMolecule); 
+    }
+    
+    std::vector<Molecule *> &getNewMolecules() {
+        return newMolecules_;
+    }
+
+    void pourNewMolecules(std::vector<Molecule *> &destination) {
+        destination.insert(destination.end(), newMolecules_.begin(), newMolecules_.end());
+        newMolecules_.clear();        
+    }
+
     void setNewSize(const double newWidth, const double newHeight) {
         newWidth_ = newWidth;
         newHeight_ = newHeight;
         newSizeState_ = true;
     }
 
-    int getNewCirclitsCnt() const { return newCirclitsCnt_; }
-    int getNewQuadritsCnt() const { return newQuadritsCnt_; }
     bool getNewSizeState() const { return newSizeState_;}
     double getNewWidth() const { return newWidth_; }
     double getNewHeight() const { return newHeight_; }
@@ -94,8 +102,15 @@ public:
     // USER API
     const std::vector<Molecule*> &getMolecules() const { return molecules_; }
     
-    void addCirclit() { preUpdateState_.addCirclit(); }
-    void addQuadrit() { preUpdateState_.addQuadrit(); }
+    void addCirclit() {
+        Molecule *newMolecule = genNewMolecule(MoleculeTypes::CIRCLIT); 
+        preUpdateState_.addNewMolecule(newMolecule);
+    }
+
+    void addQuadrit() {
+        Molecule *newMolecule = genNewMolecule(MoleculeTypes::QUADRIT); 
+        preUpdateState_.addNewMolecule(newMolecule);
+    }
 
     void resize(const double newWidth, const double newHeight) {preUpdateState_.setNewSize(newWidth, newHeight); }
 
@@ -104,7 +119,7 @@ private:
         return start + (end - start) * randomGenerator_() / double(randomGenerator_.max());
     }
     
-    void addMolecule(MoleculeTypes type) {
+    Molecule *genNewMolecule(MoleculeTypes type) {
         Molecule *newMolecule = nullptr;
 
         double posX = randRange(width_ / 3, 2 * width_ / 3);
@@ -125,27 +140,27 @@ private:
                 break;
         }
         
-        
-        molecules_.push_back(newMolecule);
+        return newMolecule;
     }
 
     void reorderMolecules() {
-        int curMoleculeIdx = molecules_.size() - 1;
-        while (curMoleculeIdx - 1 >= 0) {
-            Molecule *leftMolecule = molecules_[curMoleculeIdx - 1];
-            Molecule *rightMolecule = molecules_[curMoleculeIdx];
-
-            if (!leftMolecule->isAlive() && leftMolecule->isAlive()) {
-                std::swap(molecules_[curMoleculeIdx - 1], molecules_[curMoleculeIdx]);
+        int left = 0;
+        int right = (int)( molecules_.size()) - 1;
+        while (right - left > 0) {
+            if (!molecules_[left]->isAlive() && molecules_[right]->isAlive()) {
+                std::swap(molecules_[left], molecules_[right]);
             }
-            curMoleculeIdx--;
+            if (molecules_[left]->isAlive()) {
+                left++;
+            }
+            if (!molecules_[right]->isAlive()) {
+                right--;
+            }
         }
     }
 
     void preUpdate() {
-        
-        for (int i = 0; i < preUpdateState_.getNewCirclitsCnt(); i++) addMolecule(MoleculeTypes::CIRCLIT);
-        for (int i = 0; i < preUpdateState_.getNewQuadritsCnt(); i++) addMolecule(MoleculeTypes::QUADRIT);
+        preUpdateState_.pourNewMolecules(molecules_);
  
         if (preUpdateState_.getNewSizeState()) {
             width_ = preUpdateState_.getNewWidth();
@@ -159,14 +174,17 @@ private:
         reorderMolecules();
 
         size_t aliveCnt = 0;
-        for (auto molecules : molecules_) {
-            aliveCnt += (molecules->isAlive());
+        for (auto molecule : molecules_) {
+            aliveCnt += (molecule->isAlive());
         }
 
-        for (auto it = molecules_.begin() + aliveCnt; it < molecules_.end(); it++) {
+
+        for (auto it = molecules_.begin() + aliveCnt; it != molecules_.end();) {
+            std::cout << "delete : " << (*it)->isAlive() << " ";
             delete (*it);
-            molecules_.erase(it);
+            it = molecules_.erase(it);
         }
+        std::cout << "\n";
     }
 
     void resolveInvalides() {
@@ -229,7 +247,7 @@ private:
         if (wallCollisionEventState) {
             handleReactorEvent(closestWallCollisionEvent);
         } else {
-            handleReactorEvent(closestoleculeReactionEvent, molecules_);
+            handleReactorEvent(closestoleculeReactionEvent, preUpdateState_.getNewMolecules());
         }
     }
 };
