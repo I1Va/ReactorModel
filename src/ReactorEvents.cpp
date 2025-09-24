@@ -97,18 +97,23 @@ void QuadritQuadritReaction(
     gm_vector<double, 2> collideCenter = getCollideCenter(fstMolecule, sndMolecule);
 
     int boomMoleculeCnt = fstMolecule->getMass() + sndMolecule->getMass();
+    double summaryEnergy = fstMolecule->getPotentialEnergy() + fstMolecule->getKinecticEnergy() +
+                           sndMolecule->getPotentialEnergy() + sndMolecule->getKinecticEnergy();
+    
+    double speedCoef = std::sqrt(2 * summaryEnergy / (boomMoleculeCnt * /*mass=*/1));
+
     double boomRootationAngle = 2 * std::numbers::pi / boomMoleculeCnt;
     
     double boomRadius = std::sqrt(2 / std::sin(boomRootationAngle)) * 2;
-    gm_vector<double, 2> boomCurOffsetVector = (gm_vector<double, 2>(0, -1)) * boomRadius;
+    gm_vector<double, 2> boomCurDestVector = (gm_vector<double, 2>(0, -1));
 
     fstMolecule->setPhyState(DEATH);
     sndMolecule->setPhyState(DEATH);
 
     for (int i = 0; i < boomMoleculeCnt; i++) {
-        Molecule *newMolecule = (Molecule *) new Circlit(collideCenter + boomCurOffsetVector * BOOM_DT, boomCurOffsetVector * BOOM_SPEED_COEF, 1);
+        Molecule *newMolecule = (Molecule *) new Circlit(collideCenter + boomCurDestVector * BOOM_DT, boomCurDestVector * speedCoef, 1);
         molecules.push_back(newMolecule);
-        boomCurOffsetVector = boomCurOffsetVector.rotate(boomRootationAngle);
+        boomCurDestVector = boomCurDestVector.rotate(boomRootationAngle);
     }
 }
 
@@ -119,18 +124,23 @@ void CirclitQuadritReaction(
 ) {
     gm_vector<double, 2> collideCenter = getCollideCenter(fstMolecule, sndMolecule);
 
-
+    double summaryEnergy = fstMolecule->getPotentialEnergy() + fstMolecule->getKinecticEnergy() +
+                           sndMolecule->getPotentialEnergy() + sndMolecule->getKinecticEnergy();
+    
     int newMass = fstMolecule->getMass() + sndMolecule->getMass();
    
     
     gm_vector<double, 2> newspeedVector = (fstMolecule->getSpeedVector() * fstMolecule->getMass() + 
                                           sndMolecule->getSpeedVector() * sndMolecule->getMass()) * (1.0 / newMass);
 
+    double newPotentialEnergy = std::max(0.0, summaryEnergy - newspeedVector.get_len2() * newMass / 2);
     
     fstMolecule->setPhyState(DEATH);
     sndMolecule->setPhyState(DEATH);
 
     Molecule *newMolecule = (Molecule *) new Quadrit(collideCenter, newspeedVector, newMass);
+    newMolecule->setPotentialEnergy(newPotentialEnergy);
+   
     
     molecules.push_back(newMolecule);
 }

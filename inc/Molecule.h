@@ -28,6 +28,8 @@ protected:
     gm_vector<double, 2> speedVector_ = {};
     int mass_ = 0;
     double size_ = 0;
+
+    double potentialEnergy_ = 0;
 public:
     Molecule
     (
@@ -50,10 +52,14 @@ public:
     int getMass() const { return mass_; }
     virtual double massToSize() const { return mass_; }
     double getSize() const { return size_; }
+    double getKinecticEnergy() { return mass_ * speedVector_.get_len2() / 2; }
+    double getPotentialEnergy() const { return potentialEnergy_; }
     
     void setPosition(const gm_vector<double, 2> &other) { position_ = other; }
     void setSpeedVector(const gm_vector<double, 2> &other) { speedVector_ = other; }
     void setPhyState(const MoleculePhysicalStates state) { phyState_ = state; }
+    void setPotentialEnergy(const double newEnergy) { potentialEnergy_ = newEnergy; }
+    
 };
 
 class Circlit : public Molecule {

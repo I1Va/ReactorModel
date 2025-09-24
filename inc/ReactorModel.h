@@ -238,7 +238,10 @@ private:
             }
         }
 
-        if (!events.size()) processReactorStableState(deltaSecs);
+        if (!events.size())  {
+            processReactorStableState(deltaSecs);
+            return;
+        }
 
         auto cmpByTime = [](ReactorEvent* a, ReactorEvent* b) {
             return a->getDeltaSecs() < b->getDeltaSecs();
