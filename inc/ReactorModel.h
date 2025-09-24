@@ -23,6 +23,7 @@ class ReactorPreUpdateState {
     bool newSizeState_ = false;
     double newWidth_ = 0;
     double newHeight_ = 0;
+    bool removeMoleculeState_ = false;
 
 public:
     ReactorPreUpdateState() = default;
@@ -33,7 +34,13 @@ public:
         newSizeState_ = false;
         newWidth_ = 0;
         newHeight_ = 0;
+        removeMoleculeState_ = false;
     }
+
+    void removeMolecule() {
+        removeMoleculeState_ = true;
+    }
+
 
     void addNewMolecule(Molecule *newMolecule) { 
         assert(newMolecule);
@@ -55,6 +62,7 @@ public:
         newSizeState_ = true;
     }
 
+    bool getRemoveMoleculeState() const { return removeMoleculeState_; }
     bool getNewSizeState() const { return newSizeState_;}
     double getNewWidth() const { return newWidth_; }
     double getNewHeight() const { return newHeight_; }
@@ -107,6 +115,15 @@ public:
     // USER API
     const std::vector<Molecule*> &getMolecules() const { return molecules_; }
     
+    void removeMolecule() {
+        preUpdateState_.removeMolecule();
+    }
+
+    void narrowRightWall(const double delta) {
+        double newWidth = std::max(width_ - delta, 0.0);
+        preUpdateState_.setNewSize(newWidth, height_);
+    }
+
     void addCirclit() {
         Molecule *newMolecule = genNewMolecule(MoleculeTypes::CIRCLIT); 
         preUpdateState_.addNewMolecule(newMolecule);
@@ -116,6 +133,10 @@ public:
         Molecule *newMolecule = genNewMolecule(MoleculeTypes::QUADRIT); 
         preUpdateState_.addNewMolecule(newMolecule);
     }
+
+
+    double getWidth() const { return width_; }
+    double getHeight() const { return height_; }
 
     void resize(const double newWidth, const double newHeight) {preUpdateState_.setNewSize(newWidth, newHeight); }
 
@@ -166,10 +187,16 @@ private:
 
     void preUpdate() {
         preUpdateState_.pourNewMolecules(molecules_);
- 
+        
+        
         if (preUpdateState_.getNewSizeState()) {
             width_ = preUpdateState_.getNewWidth();
             height_ = preUpdateState_.getNewHeight();
+        }
+        if (preUpdateState_.getRemoveMoleculeState()) {
+            if (!molecules_.size()) return;
+    
+            molecules_[(int) randRange(0, molecules_.size() - 1)]->setPhyState(MoleculePhysicalStates::DEATH);
         }
 
         preUpdateState_.reset();
