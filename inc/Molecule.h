@@ -16,6 +16,7 @@ enum MoleculePhysicalStates {
     NONE_MOL_PHYSTATE,
     DEATH,
     ALIVE,
+    UNRESPONSIVE,
 };
 
 

@@ -13,8 +13,6 @@
 static const double minSpeed = 500;
 static const double maxSpeed = 1000;
 static const int initMass = 1;
-static const double STICKING_EVENTS_EPS = 0.01;
-
 static const double WALL_OFFSET_EPS = 0.01;
 
 class ReactorPreUpdateState {
@@ -202,6 +200,13 @@ private:
         preUpdateState_.reset();
     }
 
+    void reviveUnresponsives() {
+        for (auto &molecule : molecules_) {
+            if (molecule->getPhyState() == MoleculePhysicalStates::UNRESPONSIVE)
+                molecule->setPhyState(MoleculePhysicalStates::ALIVE);
+        }
+    }
+    
     void clearDeathMolecules() {
         reorderMolecules();
 
@@ -224,8 +229,10 @@ private:
                 molecule->setPhyState(MoleculePhysicalStates::DEATH);
             }
         }
-
+    
+        reviveUnresponsives();
         clearDeathMolecules();
+
     
         for (auto molecule : molecules_) {
             double x = molecule->getPosition().get_x();
@@ -249,15 +256,17 @@ private:
     void processReactortEvent(const double deltaSecs) {
         std::vector<ReactorEvent *> events = {};
 
-         for (size_t fstMoleculeId = 0; fstMoleculeId < molecules_.size(); fstMoleculeId++) {
-            WallCollisionEvent curWallCollisionEvent = tryWallCollisionEvent(molecules_[fstMoleculeId], width_, height_);
+        
+        for (size_t fstMoleculeId = 0; fstMoleculeId < molecules_.size(); fstMoleculeId++) {
+            WallCollisionEvent curWallCollisionEvent = detectWallCollision(deltaSecs, molecules_[fstMoleculeId], width_, height_);
             if (!curWallCollisionEvent.isPoison()) {
                 ReactorEvent *newEvent = (ReactorEvent *) new WallCollisionEvent(curWallCollisionEvent);
                 events.push_back(newEvent);
             }
 
             for (size_t sndMoleculeId = 0; sndMoleculeId < molecules_.size(); sndMoleculeId++) {
-                MoleculeReactionEvent curMoleculeReactionEvent = tryMoleculeReactionEvent(molecules_[fstMoleculeId], molecules_[sndMoleculeId]);
+                MoleculeReactionEvent curMoleculeReactionEvent = detectMoleculeCollision(deltaSecs, molecules_[fstMoleculeId], molecules_[sndMoleculeId]);
+                
                 if (!curMoleculeReactionEvent.isPoison()) {
                     ReactorEvent *newEvent = (ReactorEvent *) new MoleculeReactionEvent(curMoleculeReactionEvent);
                     events.push_back(newEvent);
@@ -271,22 +280,13 @@ private:
         }
 
         auto cmpByTime = [](ReactorEvent* a, ReactorEvent* b) {
-            return a->getDeltaSecs() < b->getDeltaSecs();
+            return a->getStartDelta() < b->getStartDelta();
         };
 
         std::sort(events.begin(), events.end(), cmpByTime);
-
-        double firstDelta = events[0]->getDeltaSecs();
-        if (firstDelta > deltaSecs) {
-            for (auto event : events) delete event;
-            processReactorStableState(deltaSecs);
-            return;
-        }
         
         for (auto event : events) {
-            if (event->getDeltaSecs() - firstDelta < STICKING_EVENTS_EPS) {
-                event->handleReactorEvent(preUpdateState_.getNewMolecules());
-            }
+            event->handleReactorEvent(preUpdateState_.getNewMolecules());
             delete event;
         }
     }

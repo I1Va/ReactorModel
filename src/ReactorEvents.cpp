@@ -4,7 +4,7 @@
 static const double BOOM_DT = 0.001;
 static const double BOOM_SPEED_COEF = 100;
 
-MoleculeReactionEvent tryMoleculeReactionEvent(Molecule *fstMolecule, Molecule *sndMolecule) {
+MoleculeReactionEvent detectMoleculeCollision(const double endDelta, Molecule *fstMolecule, Molecule *sndMolecule) {
     assert(fstMolecule);
     assert(sndMolecule);
 
@@ -26,12 +26,13 @@ MoleculeReactionEvent tryMoleculeReactionEvent(Molecule *fstMolecule, Molecule *
 
     if (nRoots != 2) return MoleculeReactionEvent::POISON();
      
-    if (t1 < 0) return MoleculeReactionEvent::POISON();
+    if (t1 < 0 || t1 > endDelta) return MoleculeReactionEvent::POISON();
 
-    return MoleculeReactionEvent(t1, fstMolecule, sndMolecule);
+
+    return MoleculeReactionEvent(t1, endDelta, fstMolecule, sndMolecule);
 }
 
-WallCollisionEvent tryWallCollisionEvent(Molecule *molecule, const double width, const double height) {
+WallCollisionEvent detectWallCollision(const double endDelta, Molecule *molecule, const double width, const double height) {
     assert(molecule);
 
     if (!molecule->isAlive()) return WallCollisionEvent::POISON();
@@ -70,13 +71,18 @@ WallCollisionEvent tryWallCollisionEvent(Molecule *molecule, const double width,
 
     double tMin = std::min(tx, ty);
 
-    if (std::isinf(tMin)) return WallCollisionEvent::POISON();
+    if (std::isinf(tMin) || tMin > endDelta) return WallCollisionEvent::POISON();
 
-    if (tMin == tx) {
-        return WallCollisionEvent(tMin, molecule, {-speedX, speedY});
-    } else {
-        return WallCollisionEvent(tMin, molecule, {speedX, -speedY});
-    }
+    gm_vector<double, 2> newSpeed = {};
+ 
+    if (tMin == tx)
+        newSpeed = {-speedX, speedY};
+    else
+        newSpeed = {speedX, -speedY};
+
+    gm_vector<double, 2> newPostion = molecule->getPosition() + newSpeed * (endDelta - tMin);
+
+    return WallCollisionEvent(tMin, endDelta, molecule, newPostion, newSpeed);
 } 
 
 inline gm_vector<double, 2> getCollideCenter(Molecule *fstMolecule, Molecule *sndMolecule) {
@@ -91,7 +97,8 @@ inline gm_vector<double, 2> getCollideCenter(Molecule *fstMolecule, Molecule *sn
 void QuadritQuadritReaction(
     std::vector<Molecule*> &molecules,
     Molecule *fstMolecule,
-    Molecule *sndMolecule
+    Molecule *sndMolecule,
+    double duration
 ) {
 
     gm_vector<double, 2> collideCenter = getCollideCenter(fstMolecule, sndMolecule);
@@ -111,7 +118,7 @@ void QuadritQuadritReaction(
     sndMolecule->setPhyState(DEATH);
 
     for (int i = 0; i < boomMoleculeCnt; i++) {
-        Molecule *newMolecule = (Molecule *) new Circlit(collideCenter + boomCurDestVector * BOOM_DT, boomCurDestVector * speedCoef, 1);
+        Molecule *newMolecule = (Molecule *) new Circlit(collideCenter + boomCurDestVector * duration, boomCurDestVector * speedCoef, 1);
         molecules.push_back(newMolecule);
         boomCurDestVector = boomCurDestVector.rotate(boomRootationAngle);
     }
@@ -120,7 +127,8 @@ void QuadritQuadritReaction(
 void CirclitQuadritReaction(
     std::vector<Molecule*> &molecules,
     Molecule *fstMolecule,
-    Molecule *sndMolecule
+    Molecule *sndMolecule,
+    double duration
 ) {
     gm_vector<double, 2> collideCenter = getCollideCenter(fstMolecule, sndMolecule);
 
@@ -138,7 +146,7 @@ void CirclitQuadritReaction(
     fstMolecule->setPhyState(DEATH);
     sndMolecule->setPhyState(DEATH);
 
-    Molecule *newMolecule = (Molecule *) new Quadrit(collideCenter, newspeedVector, newMass);
+    Molecule *newMolecule = (Molecule *) new Quadrit(collideCenter + newspeedVector * duration, newspeedVector, newMass);
     newMolecule->setPotentialEnergy(newPotentialEnergy);
    
     
