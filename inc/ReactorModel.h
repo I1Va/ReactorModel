@@ -13,7 +13,7 @@
 static const double minSpeed = 500;
 static const double maxSpeed = 1000;
 static const int initMass = 1;
-static const double WALL_OFFSET_EPS = 0.01;
+static const double WALL_OFFSET_EPS = 1;
 
 class ReactorPreUpdateState {
     std::vector<Molecule *> newMolecules_ = {};
@@ -233,16 +233,15 @@ private:
         reviveUnresponsives();
         clearDeathMolecules();
 
-    
         for (auto molecule : molecules_) {
             double x = molecule->getPosition().get_x();
             double y = molecule->getPosition().get_y();
             double r = molecule->getCollideCircleRadius();
-
-            if (x < r) x += WALL_OFFSET_EPS;
-            if (x > width_ - r) x -= WALL_OFFSET_EPS;
-            if (y < r) y += WALL_OFFSET_EPS;
-            if (y > height_ - r) y -= WALL_OFFSET_EPS;    
+            
+            if (x > width_)
+                x = width_ - r - WALL_OFFSET_EPS;
+            if (y > height_)
+                y = height_ - r - WALL_OFFSET_EPS;
 
             molecule->setPosition({x, y});
         }
