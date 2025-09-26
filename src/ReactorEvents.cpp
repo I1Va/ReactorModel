@@ -1,4 +1,6 @@
 #include "ReactorEvents.h"
+#include "ReactorWall.h"
+
 #include <limits>
 
 static const double BOOM_DT = 0.001;
@@ -32,7 +34,7 @@ MoleculeReactionEvent detectMoleculeCollision(const double endDelta, Molecule *f
     return MoleculeReactionEvent(t1, endDelta, fstMolecule, sndMolecule);
 }
 
-WallCollisionEvent detectWallCollision(const double endDelta, Molecule *molecule, const double width, const double height) {
+WallCollisionEvent detectWallCollision(const double endDelta, Molecule *molecule, ReactorWall reactorWalls[reactorWallsCnt]) {
     assert(molecule);
 
     if (!molecule->isAlive()) return WallCollisionEvent::POISON();
@@ -49,40 +51,75 @@ WallCollisionEvent detectWallCollision(const double endDelta, Molecule *molecule
             return WallCollisionEvent::POISON();
         }
     
-        
 
-    double tx = INFINITY;
-    double ty = INFINITY;
-
+    double tMin = INFINITY;
+    ReactorWallTypes collisionWallType = NONE_WALL;
 
     if (std::fabs(speedX) >= std::numeric_limits<double>::epsilon()) {
-         if (speedX > 0) // right wall
-            tx = (width - collideRadius - posX) / speedX; 
-        else // left wall
-            tx = (collideRadius - posX) / speedX; 
+        if (speedX > 0) { // right wall
+            double tx = (reactorWalls[RIGHT_WALL].measure - collideRadius - posX) / speedX;
+            if (tx < tMin) {
+                tMin = tx;
+                collisionWallType = RIGHT_WALL;
+            }
+        } else { // left wall
+            double tx = (collideRadius - posX) / speedX; 
+            if (tx < tMin) {
+                tMin = tx;
+                collisionWallType = LEFT_WALL;
+            }
+        }
     }
-
     if (std::fabs(speedX) >= std::numeric_limits<double>::epsilon()) {
-        if (speedY > 0) // bottom wall
-            ty = (height - collideRadius - posY) / speedY; 
-        else // top wall
-            ty = (collideRadius - posY) / speedY;                 
+        if (speedY > 0) { // bottom wall
+            double ty = (reactorWalls[BOTTOM_WALL].measure - collideRadius - posY) / speedY;
+            if (ty < tMin) {
+                tMin = ty;
+                collisionWallType = BOTTOM_WALL;
+            }
+        } else {// top wall
+            double ty = (collideRadius - posY) / speedY;
+            if (ty < tMin) {
+                tMin = ty;
+                collisionWallType = TOP_WALL;
+            } 
+        }                 
     }
 
-    double tMin = std::min(tx, ty);
+    if (std::isinf(tMin) || tMin > endDelta || collisionWallType == NONE_WALL) return WallCollisionEvent::POISON();
 
-    if (std::isinf(tMin) || tMin > endDelta) return WallCollisionEvent::POISON();
+
+    ReactorWall *collisionWall = &reactorWalls[collisionWallType];
+    double moleculEnergy = molecule->getKinecticEnergy();
+    double wallEnergy = collisionWall->energy;
+
+    double targetEnergy = (1 - collisionWall->energyTransferCoef) * moleculEnergy + wallEnergy * collisionWall->energyTransferCoef;
+    double deltaEnergy = targetEnergy - moleculEnergy;
+
+    double newWallEnergy = collisionWall->energy - deltaEnergy;
+    double newMoleculeEnergy = moleculEnergy + deltaEnergy;
 
     gm_vector<double, 2> newSpeed = {};
- 
-    if (tMin == tx)
-        newSpeed = {-speedX, speedY};
-    else
-        newSpeed = {speedX, -speedY};
+    switch (collisionWallType)
+    {
+        case RIGHT_WALL:
+        case LEFT_WALL:
+            newSpeed = {-speedX, speedY};
+            break;
 
+        case BOTTOM_WALL:
+        case TOP_WALL:
+            newSpeed = {speedX, -speedY};
+            break;
+        default:
+            assert(0 && "None WallType");
+    }        
+
+    newSpeed = newSpeed * (1 / std::sqrt(moleculEnergy)) * std::sqrt(newMoleculeEnergy); 
     gm_vector<double, 2> newPostion = molecule->getPosition() + newSpeed * (endDelta - tMin);
 
-    return WallCollisionEvent(tMin, endDelta, molecule, newPostion, newSpeed);
+
+    return WallCollisionEvent(tMin, endDelta, molecule, newPostion, newSpeed, collisionWall, newWallEnergy);
 } 
 
 inline gm_vector<double, 2> getCollideCenter(Molecule *fstMolecule, Molecule *sndMolecule) {

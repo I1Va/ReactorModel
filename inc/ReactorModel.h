@@ -9,11 +9,16 @@
 #include "Molecule.h"
 #include "ReactorEvents.h"
 #include "gm_primitives.hpp"
+#include "ReactorWall.h"
 
 static const double minSpeed = 500;
 static const double maxSpeed = 1000;
 static const int initMass = 1;
 static const double WALL_OFFSET_EPS = 1;
+static const double INIT_WALL_ENERGY = 100000;
+static const double INIT_WALL_ENERGY_TRANSFER_COEF = 0.4;
+
+
 
 class ReactorPreUpdateState {
     std::vector<Molecule *> newMolecules_ = {};
@@ -72,6 +77,8 @@ class ReactorModel {
     double width_ = 0;
     double height_ = 0;
 
+    ReactorWall reactorWalls[reactorWallsCnt] = {};
+
     std::vector<Molecule *> molecules_ = {};
     ReactorPreUpdateState preUpdateState_ = {};
     std::function<void()> onUpdate_ = nullptr;
@@ -86,7 +93,12 @@ public:
         width_(width), height_(height),
         onUpdate_(onUpdate),
         randomGenerator_(seed.value_or(std::random_device{}()))
-    {}
+    {
+        reactorWalls[ReactorWallTypes::RIGHT_WALL]  = {width_, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls[ReactorWallTypes::LEFT_WALL]   = {0, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls[ReactorWallTypes::BOTTOM_WALL] = {height_, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls[ReactorWallTypes::TOP_WALL]    = {0, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
+    }
 
     void setOnUpdate(std::function<void()> onUpdate) {
         onUpdate_ = onUpdate;
@@ -112,7 +124,8 @@ public:
 
     // USER API
     const std::vector<Molecule*> &getMolecules() const { return molecules_; }
-    
+    const ReactorWall *getReactorWalls() const { return reactorWalls; }
+
     void removeMolecule() {
         preUpdateState_.removeMolecule();
     }
@@ -257,7 +270,7 @@ private:
 
         
         for (size_t fstMoleculeId = 0; fstMoleculeId < molecules_.size(); fstMoleculeId++) {
-            WallCollisionEvent curWallCollisionEvent = detectWallCollision(deltaSecs, molecules_[fstMoleculeId], width_, height_);
+            WallCollisionEvent curWallCollisionEvent = detectWallCollision(deltaSecs, molecules_[fstMoleculeId], reactorWalls);
             if (!curWallCollisionEvent.isPoison()) {
                 ReactorEvent *newEvent = (ReactorEvent *) new WallCollisionEvent(curWallCollisionEvent);
                 events.push_back(newEvent);

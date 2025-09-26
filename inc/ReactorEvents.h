@@ -3,6 +3,7 @@
 
 #include "Molecule.h"
 #include "gm_primitives.hpp"
+#include "ReactorWall.h"
 
 #include <vector>
 
@@ -71,15 +72,19 @@ class WallCollisionEvent : public ReactorEvent {
     gm_vector<double, 2> newPosition_;    
     gm_vector<double, 2> newSpeedVector_;
     
+    ReactorWall *reactorWall_;
+    double newWallEnergy_;
+
 public:
     WallCollisionEvent() = default;
     WallCollisionEvent(
         const double startDelta, const double endDelta, Molecule * molecule, 
-        const gm_vector<double, 2>& newPosition, const gm_vector<double, 2>& newSpeedVector
+        const gm_vector<double, 2>& newPosition, const gm_vector<double, 2>& newSpeedVector,
+        ReactorWall *reactorWall, const double newWallEnergy
     ): 
         ReactorEvent(startDelta, endDelta, ReactorEventType::WallCollision), molecule_(molecule), 
-        newPosition_(newPosition), newSpeedVector_(newSpeedVector) {}
-
+        newPosition_(newPosition), newSpeedVector_(newSpeedVector),
+        reactorWall_(reactorWall), newWallEnergy_(newWallEnergy) {}
     
     static WallCollisionEvent POISON() {
         WallCollisionEvent posionEvent = {};
@@ -93,6 +98,7 @@ public:
         molecule_->setSpeedVector(newSpeedVector_);
         molecule_->setPosition(newPosition_);
         molecule_->setPhyState(MoleculePhysicalStates::UNRESPONSIVE);
+        reactorWall_->energy = newWallEnergy_;
     }
 };
 
@@ -121,6 +127,7 @@ public:
 
 
 MoleculeReactionEvent detectMoleculeCollision(const double endDelta, Molecule *fstMolecule, Molecule *sndMolecule);
-WallCollisionEvent detectWallCollision(const double endDelta, Molecule *molecule, const double width, const double height);
+WallCollisionEvent detectWallCollision(const double endDelta, Molecule *molecule, ReactorWall reactorWalls[reactorWallsCnt]);
+
 
 #endif // REACTOR_EVENTS_H
