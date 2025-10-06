@@ -106,8 +106,12 @@ public:
 
     ReactorModel() = default;
 
-    ~ReactorModel() = default;
-
+    ~ReactorModel() {
+        preUpdateState_.pourNewMolecules(molecules_);
+        for (Molecule *molecule : molecules_) {
+            delete molecule;
+        }
+    }
 
     void update(const double deltaSecs) {
         if (onUpdate_) onUpdate_();
