@@ -18,7 +18,7 @@ static const double WALL_OFFSET_EPS = 1;
 static const double INIT_WALL_ENERGY = 100000;
 static const double INIT_WALL_ENERGY_TRANSFER_COEF = 0.4;
 
-
+static const double MIN_REACTOR_SIZE = 20;
 
 class ReactorPreUpdateState {
     std::vector<Molecule *> newMolecules_ = {};
@@ -56,7 +56,7 @@ public:
 
     void pourNewMolecules(std::vector<Molecule *> &destination) {
         destination.insert(destination.end(), newMolecules_.begin(), newMolecules_.end());
-        newMolecules_.clear();        
+        newMolecules_.clear();
     }
 
     void setNewSize(const double newWidth, const double newHeight) {
@@ -132,6 +132,7 @@ public:
 
     void narrowRightWall(const double delta) {
         double newWidth = std::max(width_ - delta, 0.0);
+        newWidth = std::max(MIN_REACTOR_SIZE, newWidth);
         preUpdateState_.setNewSize(newWidth, height_);
     }
 
@@ -196,14 +197,21 @@ private:
         }
     }
 
+    void setReactorSize(int width, int height) {
+        width_ = width;
+        height_ = height;
+
+        reactorWalls[ReactorWallTypes::RIGHT_WALL].measure = width_;
+        reactorWalls[ReactorWallTypes::BOTTOM_WALL].measure = height_;
+    }
+
     void preUpdate() {
         preUpdateState_.pourNewMolecules(molecules_);
         
-        
         if (preUpdateState_.getNewSizeState()) {
-            width_ = preUpdateState_.getNewWidth();
-            height_ = preUpdateState_.getNewHeight();
+            setReactorSize(preUpdateState_.getNewWidth(), preUpdateState_.getNewHeight());
         }
+    
         if (preUpdateState_.getRemoveMoleculeState()) {
             if (!molecules_.size()) return;
     
