@@ -77,7 +77,7 @@ class ReactorModel {
     double width_ = 0;
     double height_ = 0;
 
-    ReactorWall reactorWalls[reactorWallsCnt] = {};
+    ReactorWall reactorWalls_[reactorWallsCnt] = {};
 
     std::vector<Molecule *> molecules_ = {};
     ReactorPreUpdateState preUpdateState_ = {};
@@ -98,10 +98,10 @@ public:
         onUpdate_(onUpdate),
         randomGenerator_(seed.value_or(std::random_device{}()))
     {
-        reactorWalls[ReactorWallTypes::RIGHT_WALL]  = {width_, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
-        reactorWalls[ReactorWallTypes::LEFT_WALL]   = {0, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
-        reactorWalls[ReactorWallTypes::BOTTOM_WALL] = {height_, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
-        reactorWalls[ReactorWallTypes::TOP_WALL]    = {0, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls_[ReactorWallTypes::RIGHT_WALL]  = {width_, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls_[ReactorWallTypes::LEFT_WALL]   = {0, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls_[ReactorWallTypes::BOTTOM_WALL] = {height_, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls_[ReactorWallTypes::TOP_WALL]    = {0, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
     }
 
     void setOnUpdate(std::function<void()> onUpdate) {
@@ -132,7 +132,7 @@ public:
 
     // USER API
     const std::vector<Molecule*> &getMolecules() const { return molecules_; }
-    const ReactorWall *getReactorWalls() const { return reactorWalls; }
+    const ReactorWall *getReactorWalls() const { return reactorWalls_; }
 
     void removeMolecule() {
         preUpdateState_.removeMolecule();
@@ -156,6 +156,10 @@ public:
 
     int getCirclitCount() { return circlitCount_; }
     int getQuadritCount() { return quadritCount_; }
+
+    void addEnergyToWall(ReactorWallTypes type, int percentage) {
+        reactorWalls_[type].energy += reactorWalls_[type].energy * percentage / 100;
+    }
 
     double getSummaryEnergy() { return summarySystemEnergy_; }
     double getWidth() const { return width_; }
@@ -212,8 +216,8 @@ private:
         width_ = width;
         height_ = height;
 
-        reactorWalls[ReactorWallTypes::RIGHT_WALL].measure = width_;
-        reactorWalls[ReactorWallTypes::BOTTOM_WALL].measure = height_;
+        reactorWalls_[ReactorWallTypes::RIGHT_WALL].measure = width_;
+        reactorWalls_[ReactorWallTypes::BOTTOM_WALL].measure = height_;
     }
 
     double calculateSummarySystemEnergy() {
@@ -222,12 +226,14 @@ private:
             summaryEnergy += molecule->getKinecticEnergy() + molecule->getPotentialEnergy();
 
         for (int i = 0; i < 4; i++)
-            summaryEnergy += reactorWalls[i].energy;
+            summaryEnergy += reactorWalls_[i].energy;
         
         return summaryEnergy;
     }
 
     void countMolecules() {
+        circlitCount_ = 0;
+        quadritCount_ = 0;
         for (Molecule *molecule : molecules_) {
             circlitCount_ += (molecule->getType() == CIRCLIT);
             quadritCount_ += (molecule->getType() == QUADRIT);
@@ -311,7 +317,7 @@ private:
 
         
         for (size_t fstMoleculeId = 0; fstMoleculeId < molecules_.size(); fstMoleculeId++) {
-            WallCollisionEvent curWallCollisionEvent = detectWallCollision(deltaSecs, molecules_[fstMoleculeId], reactorWalls);
+            WallCollisionEvent curWallCollisionEvent = detectWallCollision(deltaSecs, molecules_[fstMoleculeId], reactorWalls_);
             if (!curWallCollisionEvent.isPoison()) {
                 ReactorEvent *newEvent = (ReactorEvent *) new WallCollisionEvent(curWallCollisionEvent);
                 events.push_back(newEvent);
