@@ -84,6 +84,8 @@ class ReactorModel {
     std::function<void()> onUpdate_ = nullptr;
 
     double summarySystemEnergy_ = 0;
+    int circlitCount_ = 0;
+    int quadritCount_ = 0;
 
 public:
     ReactorModel
@@ -152,10 +154,13 @@ public:
         preUpdateState_.addNewMolecule(newMolecule);
     }
 
+    int getCirclitCount() { return circlitCount_; }
+    int getQuadritCount() { return quadritCount_; }
+
     double getSummaryEnergy() { return summarySystemEnergy_; }
     double getWidth() const { return width_; }
     double getHeight() const { return height_; }
-
+    
     void resize(const double newWidth, const double newHeight) {preUpdateState_.setNewSize(newWidth, newHeight); }
 
 private:
@@ -222,6 +227,13 @@ private:
         return summaryEnergy;
     }
 
+    void countMolecules() {
+        for (Molecule *molecule : molecules_) {
+            circlitCount_ += (molecule->getType() == CIRCLIT);
+            quadritCount_ += (molecule->getType() == QUADRIT);
+        }
+    }
+
     void preUpdate() {
         preUpdateState_.pourNewMolecules(molecules_);
         
@@ -236,6 +248,8 @@ private:
         }
 
         summarySystemEnergy_ = calculateSummarySystemEnergy();
+
+        countMolecules();
 
         preUpdateState_.reset();
     }
