@@ -83,6 +83,8 @@ class ReactorModel {
     ReactorPreUpdateState preUpdateState_ = {};
     std::function<void()> onUpdate_ = nullptr;
 
+    double summarySystemEnergy_ = 0;
+
 public:
     ReactorModel
     (       
@@ -95,9 +97,9 @@ public:
         randomGenerator_(seed.value_or(std::random_device{}()))
     {
         reactorWalls[ReactorWallTypes::RIGHT_WALL]  = {width_, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
-        reactorWalls[ReactorWallTypes::LEFT_WALL]   = {0, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
-        reactorWalls[ReactorWallTypes::BOTTOM_WALL] = {height_, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
-        reactorWalls[ReactorWallTypes::TOP_WALL]    = {0, INIT_WALL_ENERGY, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls[ReactorWallTypes::LEFT_WALL]   = {0, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls[ReactorWallTypes::BOTTOM_WALL] = {height_, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
+        reactorWalls[ReactorWallTypes::TOP_WALL]    = {0, 0, INIT_WALL_ENERGY_TRANSFER_COEF};
     }
 
     void setOnUpdate(std::function<void()> onUpdate) {
@@ -150,7 +152,7 @@ public:
         preUpdateState_.addNewMolecule(newMolecule);
     }
 
-
+    double getSummaryEnergy() { return summarySystemEnergy_; }
     double getWidth() const { return width_; }
     double getHeight() const { return height_; }
 
@@ -209,6 +211,17 @@ private:
         reactorWalls[ReactorWallTypes::BOTTOM_WALL].measure = height_;
     }
 
+    double calculateSummarySystemEnergy() {
+        double summaryEnergy = 0;
+        for (Molecule *molecule : molecules_) 
+            summaryEnergy += molecule->getKinecticEnergy() + molecule->getPotentialEnergy();
+
+        for (int i = 0; i < 4; i++)
+            summaryEnergy += reactorWalls[i].energy;
+        
+        return summaryEnergy;
+    }
+
     void preUpdate() {
         preUpdateState_.pourNewMolecules(molecules_);
         
@@ -221,6 +234,8 @@ private:
     
             molecules_[(int) randRange(0, molecules_.size() - 1)]->setPhyState(MoleculePhysicalStates::DEATH);
         }
+
+        summarySystemEnergy_ = calculateSummarySystemEnergy();
 
         preUpdateState_.reset();
     }
